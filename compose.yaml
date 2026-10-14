@@ -1,0 +1,52 @@
+name: github-trending
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: trending
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: trending
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U trending -d trending]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_USER: trending
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: trending
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      SEARCH_LIMIT: ${SEARCH_LIMIT:-100}
+      TRANSLATION_BASE_URL: ${TRANSLATION_BASE_URL:-}
+      TRANSLATION_MODEL: ${TRANSLATION_MODEL:-}
+      TRANSLATION_API_KEY: ${TRANSLATION_API_KEY:-}
+      COLLECT_HOUR: ${COLLECT_HOUR:-1}
+      TRENDING_COLLECT_HOUR: ${TRENDING_COLLECT_HOUR:-1}
+      SCHEDULE_ENABLED: ${SCHEDULE_ENABLED:-true}
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:${WEB_PORT:-8080}}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - 0.0.0.0:${WEB_PORT:-8080}:80
+    depends_on:
+      api:
+        condition: service_healthy
+volumes:
+  postgres_data:

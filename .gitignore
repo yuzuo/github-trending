@@ -1,0 +1,19 @@
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+dist/
+.pytest_cache/
+.local/
+.idea/
+.DS_Store
+*.dump
+*.pem
+*.key
+
+# Local provider experiments; keep credentials and unrelated scripts out of history.
+/test_run_*.py
+/test_yjzh_kimi3.py

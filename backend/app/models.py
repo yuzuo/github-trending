@@ -1,0 +1,121 @@
+from datetime import date, datetime, timezone
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.dialects.postgresql import JSONB
+
+
+def utcnow():
+    return datetime.now(timezone.utc)
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Repository(Base):
+    __tablename__ = 'repositories'
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    full_name: Mapped[str] = mapped_column(String(300), index=True)
+    html_url: Mapped[str] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
+    description_zh: Mapped[str | None] = mapped_column(Text)
+    language: Mapped[str | None] = mapped_column(String(100))
+    license: Mapped[str | None] = mapped_column(String(100))
+    default_branch: Mapped[str] = mapped_column(Text)
+    stars: Mapped[int] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    pushed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    first_fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    readme_path: Mapped[str | None] = mapped_column(Text)
+    readme_original: Mapped[str | None] = mapped_column(Text)
+    readme_zh: Mapped[str | None] = mapped_column(Text)
+    readme_hash: Mapped[str | None] = mapped_column(String(64))
+    translated_hash: Mapped[str | None] = mapped_column(String(64))
+    translation_status: Mapped[str] = mapped_column(String(24), default='pending')
+    translation_error: Mapped[str | None] = mapped_column(Text)
+
+
+class SnapshotColumns:
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    repository_id: Mapped[int] = mapped_column(ForeignKey('repositories.id'), index=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    trending_rank: Mapped[int] = mapped_column(Integer)
+    daily_stars: Mapped[int | None] = mapped_column(BigInteger)
+    stars: Mapped[int] = mapped_column(BigInteger)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class SearchSnapshot(SnapshotColumns, Base):
+    __tablename__ = 'search_snapshots'
+    __table_args__ = (UniqueConstraint('repository_id', 'date', name='uq_search_repository_date'),)
+    details: Mapped[dict | None] = mapped_column(JSONB)
+    details_origin: Mapped[str] = mapped_column(String(24), default='captured', server_default='captured')
+
+
+class TrendingSnapshot(SnapshotColumns, Base):
+    __tablename__ = 'trending_snapshots'
+    __table_args__ = (UniqueConstraint('repository_id', 'date', name='uq_trending_repository_date'),)
+    details: Mapped[dict | None] = mapped_column(JSONB)
+    details_origin: Mapped[str] = mapped_column(String(24), default='captured', server_default='captured')
+
+
+SNAPSHOT_MODELS = {'search': SearchSnapshot, 'trending': TrendingSnapshot}
+
+
+class CollectionRun(Base):
+    __tablename__ = 'collection_runs'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    source: Mapped[str] = mapped_column(String(24), default='search', server_default='search')
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(24), default='running')
+    success_count: Mapped[int] = mapped_column(Integer, default=0)
+    failure_count: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text)
+    retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    items: Mapped[list | None] = mapped_column(JSONB)
+
+
+class WatchProject(Base):
+    __tablename__ = 'watch_projects'
+    __table_args__ = (CheckConstraint('rating BETWEEN 1 AND 5', name='watch_rating_range'),)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    full_name: Mapped[str] = mapped_column(String(300), index=True)
+    details: Mapped[dict] = mapped_column(JSONB)
+    discovered_by: Mapped[list] = mapped_column(JSONB, default=list)
+    manual: Mapped[bool] = mapped_column(Boolean, default=False)
+    followed: Mapped[bool] = mapped_column(Boolean, default=False)
+    hidden: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    review_status: Mapped[str] = mapped_column(String(24), default='pending')
+    rating: Mapped[int | None] = mapped_column(Integer)
+    notes: Mapped[str] = mapped_column(Text, default='')
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+
+class WatchRun(Base):
+    __tablename__ = 'watch_runs'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(24), default='running')
+    success_count: Mapped[int] = mapped_column(Integer, default=0)
+    failure_count: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text)
+    retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    discovery_done: Mapped[bool] = mapped_column(Boolean, default=False)
+    discovery_progress: Mapped[dict] = mapped_column(JSONB, default=dict)
+    cycle_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class WatchSample(Base):
+    __tablename__ = 'watch_samples'
+    __table_args__ = (UniqueConstraint('project_id', 'run_id', name='uq_watch_project_run'),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey('watch_projects.id'), index=True)
+    run_id: Mapped[int | None] = mapped_column(ForeignKey('watch_runs.id'))
+    stars: Mapped[int] = mapped_column(BigInteger)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
