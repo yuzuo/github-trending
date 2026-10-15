@@ -124,3 +124,15 @@ class ValidationJobsTests(unittest.TestCase):
         enqueue(self.sessions)
         with self.sessions() as s:
             self.assertIsNotNone(s.scalar(select(ValidationJob).where(ValidationJob.event_id==5)))
+
+    def test_github_rate_limit_does_not_consume_attempts_or_claim_other_source_jobs(self):
+        from app.models import ValidationJob
+        self.seed(); enqueue(self.sessions)
+        job=claim(self.sessions)
+        fail(self.sessions,job['id'],job['lease_token'],'GitHubRateLimited',retry_after=120)
+        self.assertIsNone(claim(self.sessions))
+        with self.sessions.begin() as s:
+            item=s.get(ValidationJob,job['id'])
+            self.assertEqual(item.attempts,0)
+            item.retry_at=utcnow()-timedelta(seconds=1)
+        self.assertIsNotNone(claim(self.sessions))

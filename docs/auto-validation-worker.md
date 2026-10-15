@@ -11,9 +11,9 @@ python3 validation/worker.py --once  # 领取并处理至多一个任务
 python3 validation/worker.py         # 串行处理队列；空闲时每 60 秒检查，Ctrl+C 停止
 ```
 
-Windows 可使用 `.venv\Scripts\python.exe validation/worker.py`。macOS 可以使用系统或自行安装的 Python 3.9+。worker 仅用标准库，不安装被验证项目的依赖。启动后需要保持这个进程运行；本脚本不安装系统后台服务。
+Windows 可使用 `.venv\Scripts\python.exe validation/worker.py`。macOS 可以使用系统或自行安装的 Python 3.9+。worker 仅用标准库；源码检查不安装项目依赖，Scrapy 功能镜像安装指定版本。启动后需要保持这个进程运行；23 服务器使用仓库中的 `validation/local.github-trending.validation.plist` 配置用户级 launchd 服务（路径针对 xai 用户），在用户登录且 Docker 可用时运行。
 
-主机锁保存在 `.local/auto-validation/worker.lock`，同一个工作目录只允许一个 worker。每次任务记录在 `.local/auto-validation/<任务 ID>/`，包括下载的源码归档、构建/运行日志和 JSON 结果。失败消息向后端仅发送异常类名，不包含凭据或请求正文。GitHub API 无需令牌；公开接口限流、网络失败等交由后端重试。HTTPError 延迟 60 分钟重试，其他执行错误延迟 15 分钟重试，最多 3 次。
+主机锁保存在 `.local/auto-validation/worker.lock`，同一个工作目录只允许一个 worker。每次任务记录在 `.local/auto-validation/<任务 ID>/`，包括下载的源码归档、构建/运行日志和 JSON 结果。失败消息向后端仅发送异常类名，不包含凭据或请求正文。GitHub API 无需令牌；检测到限流后按响应中的额度恢复时间冷却（限制 1 分钟至 2 小时），暂停其他源码任务且不消耗失败次数。其他 HTTPError 延迟 60 分钟重试，普通执行错误延迟 15 分钟重试，最多 3 次。
 
 ## 检查范围
 

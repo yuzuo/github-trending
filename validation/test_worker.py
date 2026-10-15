@@ -60,6 +60,16 @@ class WorkerTests(unittest.TestCase):
             worker.once()
         self.assertEqual(queue.call_args.args, ('error', {'id': 1, 'lease_token': 'token', 'error': 'ValueError'}))
 
+    def test_rate_limit_uses_reset_header_without_exposing_response(self):
+        import urllib.error
+        error=urllib.error.HTTPError('https://api.github.com/repos/owner/repo',403,'secret',
+            {'X-RateLimit-Remaining':'0','X-RateLimit-Reset':'1500'},None)
+        with patch.object(worker,'queue',side_effect=[job(),None]) as queue, \
+                patch.object(worker,'execute',side_effect=error),patch.object(worker.time,'time',return_value=1000):
+            worker.once()
+        self.assertEqual(queue.call_args.args[1]['error'],'GitHubRateLimited')
+        self.assertEqual(queue.call_args.args[1]['retry_after'],505)
+
     def test_completion_and_no_job(self):
         result = {'suite': 'source-smoke-v1', 'status': 'unsupported', 'metrics': {}, 'evidence': {}}
         with patch.object(worker, 'queue', side_effect=[job(), None]) as queue, \

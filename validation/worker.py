@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 import urllib.parse
+import urllib.error
 import urllib.request
 import uuid
 
@@ -183,7 +184,15 @@ def once():
             raise ArchiveValidationError()
     except Exception as error:
         # Exception messages can contain URLs or subprocess environments; retain only the class.
-        queue('error', dict(identity, error=type(error).__name__))
+        failure=dict(identity,error=type(error).__name__)
+        if isinstance(error,urllib.error.HTTPError) and (error.code == 429 or error.headers.get('X-RateLimit-Remaining') == '0'):
+            delay=3600
+            try:
+                delay=int(error.headers.get('X-RateLimit-Reset'))-int(time.time())+5
+            except (TypeError,ValueError):
+                pass
+            failure.update(error='GitHubRateLimited',retry_after=max(60,min(7200,delay)))
+        queue('error', failure)
         return True
     queue('complete', dict(identity, result=result))
     return True

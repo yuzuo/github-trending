@@ -66,6 +66,7 @@ def claim(sessions):
             worker.last_seen=now
         jobs = session.scalars(select(ValidationJob).where(ValidationJob.status.in_(['queued','running','error']))
             .order_by(ValidationJob.source_at,ValidationJob.id).with_for_update()).all()
+        github_cooling=any(job.error=='GitHubRateLimited' and job.retry_at and job.retry_at>now for job in jobs)
         for job in jobs:
             project = session.get(WatchProject,job.project_id)
             if not project.followed or project.hidden:
@@ -77,6 +78,8 @@ def claim(sessions):
                     continue
                 job.status, job.error = 'error', '执行租约超时'
             if job.attempts >= 3 or (job.retry_at and job.retry_at > now):
+                continue
+            if job.suite == SOURCE and github_cooling:
                 continue
             job.status, job.attempts = 'running', job.attempts + 1
             job.lease_token, job.lease_until = secrets.token_hex(24), now + timedelta(minutes=30)
@@ -132,11 +135,16 @@ def complete(sessions, job_id, token, result):
         job.lease_token, job.lease_until = None,None
 
 
-def fail(sessions, job_id, token, error):
+def fail(sessions, job_id, token, error, retry_after=None):
     with sessions.begin() as session:
         job = leased(session,job_id,token)
         job.status, job.error, job.finished_at = 'error', str(error)[:300], utcnow()
         job.retry_at = utcnow()+timedelta(minutes=60 if error == 'HTTPError' else 15) if job.attempts < 3 else None
+        if error == 'GitHubRateLimited':
+            if type(retry_after) is not int or not 60 <= retry_after <= 7200:
+                raise ValueError('无效冷却时间')
+            job.attempts=max(0,job.attempts-1)
+            job.retry_at=utcnow()+timedelta(seconds=retry_after)
         job.lease_token, job.lease_until = None,None
 
 
@@ -206,7 +214,7 @@ if __name__ == '__main__':
             if args.command=='complete':
                 complete(sessions,data['id'],data['lease_token'],data['result'])
             else:
-                fail(sessions,data['id'],data['lease_token'],data['error'])
+                fail(sessions,data['id'],data['lease_token'],data['error'],data.get('retry_after'))
             output={'status':'saved'}
         print(json.dumps(output,ensure_ascii=False))
     finally:
