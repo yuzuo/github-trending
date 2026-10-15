@@ -28,6 +28,20 @@ class ProfileBody(BaseModel):
 
 
 def register_attention(router, service, protect_write, empty_body):
+    @router.get('/validation-jobs')
+    def validation_jobs():
+        from .validation_jobs import overview
+        return overview(service.sessions)
+
+    @router.post('/validation-jobs/{job_id}/retry', dependencies=[Depends(protect_write)])
+    def retry_validation(job_id: int, body: empty_body):
+        from .validation_jobs import retry
+        try:
+            retry(service.sessions,job_id)
+        except ValueError as exc:
+            raise HTTPException(409,str(exc)) from exc
+        return {'status':'queued'}
+
     @router.put('/profiles/{project_id}', dependencies=[Depends(protect_write)])
     def edit_profile(project_id: int, body: ProfileBody):
         with service.sessions.begin() as session:

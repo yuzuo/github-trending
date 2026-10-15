@@ -6,6 +6,9 @@ const items = ref([]), profiles = ref([]), total = ref(0), project = ref(''), ca
 const loading = ref(false), error = ref(''), notice = ref(''), enabled = ref(false), running = ref(false), starting = ref(false)
 const profileProject = ref(''), form = ref({ usage_status: 'evaluating', version: '', scenario: '', capabilities: '' }), saving = ref(false), profileNotice = ref('')
 const validations = ref([]), comparison = ref(null), validationError = ref(''), validationLoading = ref(false)
+const checks = ref({ projects: [], jobs: [], alerts: [] }), checksError = ref(''), retrying = ref(null)
+const jobStates = { queued: '排队中', running: '执行中', passed: '通过', failed: '检查未通过', unsupported: '当前任务未覆盖', error: '执行错误', cancelled: '已取消' }
+const suiteLabel = suite => suite === 'source-smoke-v1' ? '源码基础检查' : '分页、去重与重试功能实测'
 const categories = { all: '全部分类', feature: '新功能', breaking: '破坏性变更', bug: '问题报告', fix: '修复说明', other: '其他' }
 const states = { ready: '分析完成', pending: '待分析', failed: '分析失败', unconfigured: '未配置分析', stale: '分析已过期，请刷新' }
 const priorities = { high: '高优先级', medium: '中优先级', low: '低优先级' }
@@ -13,6 +16,20 @@ const time = value => value ? new Date(value).toLocaleString('zh-CN', { hour12: 
 const safeUrl = value => { try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) ? url.href : undefined } catch { return undefined } }
 const controllers = new Set()
 let requestId = 0, validationId = 0, listController, validationController, timer, disposed = false
+let checksLoading = false
+async function loadChecks() {
+  if (disposed || checksLoading) return
+  checksLoading = true
+  try { const data = await api('/validation-jobs'); if (!disposed) { checks.value = data; checksError.value = '' } }
+  catch (e) { if (e.name !== 'AbortError') checksError.value = e.message }
+  finally { checksLoading = false }
+}
+async function retryCheck(id) {
+  retrying.value = id
+  try { await api(`/validation-jobs/${id}/retry`, 'POST', {}); await loadChecks() }
+  catch (e) { if (e.name !== 'AbortError') checksError.value = e.message }
+  finally { retrying.value = null }
+}
 async function api(path, method = 'GET', body, controller = new AbortController()) {
   controllers.add(controller)
   try {
@@ -76,7 +93,7 @@ watch(profileProject, () => {
   form.value = { usage_status: p?.usage_status || 'evaluating', version: p?.version || '', scenario: p?.scenario || '', capabilities: (p?.capabilities || []).join('\n') }
   profileNotice.value = ''; loadValidations()
 })
-onMounted(() => { load(); timer = setInterval(() => { if (running.value) load(true) }, 5000) })
+onMounted(() => { load(); loadChecks(); timer = setInterval(() => { if (running.value) load(true); loadChecks() }, 5000) })
 onUnmounted(() => { disposed = true; ++requestId; ++validationId; clearInterval(timer); controllers.forEach(c => c.abort()) })
 </script>
 
@@ -86,6 +103,20 @@ onUnmounted(() => { disposed = true; ++requestId; ++validationId; clearInterval(
     <div class="hero shell"><div><p class="eyebrow">NEEDS ATTENTION · 结合实际使用</p><h1>看懂变化，<span>判断下一步。</span></h1><p class="hero-copy">把来源证据、项目使用档案和固定任务测试放在一起，保留事实与模型解读的边界。</p></div></div>
   </header>
   <main class="shell attention-main">
+    <section class="attention-card" aria-label="自动版本测试">
+      <h2>关注项目 · 自动版本检查</h2>
+      <p>监测发现正式 Release 后自动排队，首次检查最近两个版本。源码基础检查不代表采集功能可用；功能实测按项目配置。</p>
+      <p class="attention-warning">执行器每分钟领取任务；下载或安装失败属于执行错误，不视为功能回归。没有发布 Release 的项目等待版本。</p>
+      <p>执行器最近联系：{{ checks.worker_last_seen ? time(checks.worker_last_seen) : '尚未连接' }}</p>
+      <button @click="loadChecks">刷新测试队列</button>
+      <p v-if="checksError" role="alert">{{ checksError }}</p>
+      <article v-for="alert in checks.alerts" :key="alert.job_id" class="attention-note" role="status"><strong>{{ alert.full_name }} · {{ suiteLabel(alert.suite) }}回归</strong><p>{{ alert.baseline_version }} → {{ alert.candidate_version }} · {{ alert.summary }}</p></article>
+      <ul><li v-for="p in checks.projects" :key="p.project_id">{{ p.full_name }} · {{ p.functional_status === 'configured' ? '已配置功能实测' : '功能实测待配置' }}<span v-if="!p.latest.length"> · 等待正式版本入队</span><span v-for="job in p.latest" :key="job.id"> · {{ suiteLabel(job.suite) }} {{ job.version }}：{{ jobStates[job.status] }}</span></li></ul>
+      <details><summary>同任务、同环境的版本对比（{{ checks.comparisons?.length || 0 }}）</summary><p v-if="!checks.comparisons?.length">等待两个版本的可比检查结果。</p><p v-for="c in checks.comparisons" :key="`${c.project_id}:${c.suite}`">{{ c.full_name }} · {{ suiteLabel(c.suite) }}：{{ c.baseline_version }}（{{ jobStates[c.baseline_status] }}）→ {{ c.candidate_version }}（{{ jobStates[c.candidate_status] }}）</p></details>
+      <details><summary>最近 {{ checks.jobs?.length || 0 }} 条任务与证据</summary>
+        <article v-for="job in checks.jobs" :key="job.id" class="evidence"><h3>{{ job.full_name }} · {{ job.version }}</h3><p>{{ suiteLabel(job.suite) }} · {{ jobStates[job.status] }} · 尝试 {{ job.attempts }}/3</p><p v-if="job.error">{{ job.error }}<template v-if="job.retry_at"> · 重试时间 {{ time(job.retry_at) }}</template></p><p v-if="job.status === 'running'">租约截止 {{ time(job.lease_until) }}；超时将恢复任务。</p><a :href="safeUrl(job.source_url)" target="_blank" rel="noopener noreferrer">发布来源 ↗</a><button v-if="['error','cancelled'].includes(job.status)" :disabled="retrying !== null" @click="retryCheck(job.id)">重新排队</button><pre v-if="job.result && Object.keys(job.result).length">{{ JSON.stringify(job.result, null, 2) }}</pre></article>
+      </details>
+    </section>
     <section class="attention-intro"><div><h2>需要关注</h2><p>默认显示分析完成的高、中优先级动态；可切换查看全部及待分析内容。</p></div><button class="primary" :disabled="!enabled || running || starting" @click="analyze">{{ running || starting ? '分析中…' : '刷新分析' }}</button></section>
     <p v-if="!enabled" class="attention-note">未配置模型分析。可查看全部动态和来源证据，配置后再刷新分析。</p>
     <p v-if="notice" role="status" class="attention-note">{{ notice }}</p>

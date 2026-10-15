@@ -16,7 +16,7 @@ const settle = async () => { await new Promise(resolve => setTimeout(resolve, 0)
 const response = data => ({ ok: true, json: async () => data })
 const profile = { project_id: 1, full_name: 'o/r', usage_status: 'evaluating', version: '', scenario: '', capabilities: [] }
 const item = { id: 1, project_id: 1, full_name: 'o/r', title: '<img src=x>', url: 'javascript:alert(1)', analysis: { status: 'stale', category: 'bug', priority: 'high', summary: '<script>bad</script>', impact: '待确认', action: '查看来源', evidence_ids: ['issue:1'] }, evidence: [{ id: 'issue:1', title: '原始报告', excerpt: '<img src=x>', url: 'https://github.com/o/r/issues/1', state: 'closed', author_role: 'CONTRIBUTOR' }], related_events: [] }
-const data = { items: [item], total: 1, profiles: [profile], analysis_enabled: true, running: false }
+const data = { items: [item], total: 1, profiles: [profile], analysis_enabled: true, running: false, projects: [], jobs: [], alerts: [] }
 
 test('attention keeps analysis unverified, escapes evidence and blocks unsafe URLs', async () => {
   globalThis.fetch = async () => response(data)
@@ -55,5 +55,30 @@ test('profile save uses PUT, preserves form on failure, and loads bounded valida
     fail = false
     document.querySelector('form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true })); await settle()
     assert.match(document.body.textContent, /档案已保存/)
+  } finally { app.unmount() }
+})
+
+test('automatic checks show regression without model analysis and distinguish execution errors', async () => {
+  let retried = false
+  globalThis.fetch = async (url, options) => {
+    if (url.endsWith('/retry')) { retried = options.method === 'POST'; return response({ status: 'queued' }) }
+    if (url.includes('/validation-jobs')) return response({
+      projects: [{ project_id: 1, full_name: 'owner/project', functional_status: 'not_configured', latest: [] }],
+      alerts: [{ job_id: 1, full_name: 'owner/project', suite: 'source-smoke-v1', baseline_version: 'v1', candidate_version: 'v2', summary: '仅源码基础检查出现退化' }],
+      jobs: [{ id: 2, full_name: 'owner/project', version: 'v3', suite: 'source-smoke-v1', status: 'error', attempts: 3, error: 'TimeoutError', source_url: 'javascript:alert(1)', result: {} }]
+    })
+    return response({ ...data, items: [], analysis_enabled: false })
+  }
+  const app = createApp(Attention); app.mount('#app')
+  try {
+    await settle()
+    const section = document.querySelector('[aria-label="自动版本测试"]')
+    assert.match(section.textContent, /源码基础检查回归/)
+    assert.match(section.textContent, /功能实测待配置/)
+    assert.match(section.textContent, /执行错误/)
+    assert.equal(section.querySelector('a[href^="javascript:"]'), null)
+    Array.from(section.querySelectorAll('button')).find(b => b.textContent === '重新排队').click()
+    await settle()
+    assert.equal(retried, true)
   } finally { app.unmount() }
 })

@@ -208,3 +208,37 @@ class ValidationResult(Base):
     evidence: Mapped[dict] = mapped_column(JSONB)
     digest: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ValidationTracking(Base):
+    __tablename__ = 'validation_tracking'
+    project_id: Mapped[int] = mapped_column(ForeignKey('watch_projects.id'), primary_key=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ValidationWorkerState(Base):
+    __tablename__ = 'validation_worker_state'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ValidationJob(Base):
+    __tablename__ = 'validation_jobs'
+    __table_args__ = (UniqueConstraint('event_id', 'suite', name='uq_validation_job_event_suite'),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey('watch_projects.id'), index=True)
+    event_id: Mapped[int] = mapped_column(ForeignKey('monitor_events.id'))
+    full_name: Mapped[str] = mapped_column(String(300))
+    version: Mapped[str] = mapped_column(String(100))
+    source_url: Mapped[str] = mapped_column(Text)
+    source_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    suite: Mapped[str] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(24), default='queued')
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    lease_token: Mapped[str | None] = mapped_column(String(64))
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    result: Mapped[dict] = mapped_column(JSONB, default=dict)
+    error: Mapped[str | None] = mapped_column(Text)

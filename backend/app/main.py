@@ -30,6 +30,9 @@ async def schedule(collector, watch=None, monitor=None, attention=None):
     startup = {'trending', 'search'}
     while True:
         try:
+            if attention:
+                from .validation_jobs import enqueue
+                await asyncio.to_thread(enqueue, collector.sessions)
             if monitor and await asyncio.to_thread(monitor.due):
                 await asyncio.to_thread(monitor.start)
             if attention and await asyncio.to_thread(attention.due):
