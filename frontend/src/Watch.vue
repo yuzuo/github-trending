@@ -124,7 +124,7 @@ onUnmounted(() => { disposed = true; ++listRequest; ++detailRequest; clearTimeou
 
 <template>
   <header class="masthead">
-    <div class="topbar shell"><a class="brand" href="/"><span class="brand-icon">⌘</span> 开源观察</a><nav class="source-nav" aria-label="观察导航"><a href="/trending">每日 Trending</a><a href="/stars">Star 总榜</a><a href="/crawler-watch" aria-current="page">采集项目观察</a></nav><span class="local"><i></i> 本地知识库</span></div>
+    <div class="topbar shell"><a class="brand" href="/"><span class="brand-icon">⌘</span> 开源观察</a><nav class="source-nav" aria-label="观察导航"><a href="/trending">每日 Trending</a><a href="/stars">Star 总榜</a><a href="/crawler-watch" aria-current="page">采集项目观察</a><a href="/crawler-watch/updates">项目动态</a></nav><span class="local"><i></i> 本地知识库</span></div>
     <div class="hero shell"><div><p class="eyebrow">CRAWLER WATCH · 持续发现，认真测评</p><h1>追踪数据采集的<span>开源脉动。</span></h1><p class="hero-copy">发现爬虫与网页提取项目，记录真实 Star 变化，建立自己的测评档案。</p></div><div class="hero-note"><span>从发现，到实践。</span><strong>Discover. Watch. Review.</strong></div></div>
   </header>
   <main class="shell">
