@@ -18,16 +18,19 @@ from .database import database, initialize_database
 from .models import CollectionRun, SNAPSHOT_MODELS, Repository
 from .watch import WatchService
 from .watch_api import watch_router
+from .monitor import MonitorService
 
 
 def serialize(model):
     return {column.name: getattr(model, column.name) for column in model.__table__.columns}
 
 
-async def schedule(collector, watch=None):
+async def schedule(collector, watch=None, monitor=None):
     startup = {'trending', 'search'}
     while True:
         try:
+            if monitor and await asyncio.to_thread(monitor.due):
+                await asyncio.to_thread(monitor.start)
             for kind in ('trending', 'search'):
                 if await asyncio.to_thread(collector.due, startup=kind in startup, kind=kind):
                     if await asyncio.to_thread(collector.start, kind=kind):
@@ -49,13 +52,15 @@ def create_app(settings=None, engine=None):
         sessions = sessionmaker(engine, expire_on_commit=False)
     collector = Collector(engine, sessions, settings)
     watch = WatchService(collector)
+    monitor = MonitorService(collector)
 
     @asynccontextmanager
     async def lifespan(app):
         await asyncio.to_thread(initialize_database, engine)
         await asyncio.to_thread(collector.recover)
         await asyncio.to_thread(watch.recover)
-        task = asyncio.create_task(schedule(collector, watch)) if settings.schedule_enabled else None
+        await asyncio.to_thread(monitor.recover)
+        task = asyncio.create_task(schedule(collector, watch, monitor)) if settings.schedule_enabled else None
         yield
         if task:
             task.cancel()
@@ -67,7 +72,8 @@ def create_app(settings=None, engine=None):
     app = FastAPI(title='GitHub 开源观察', lifespan=lifespan, docs_url='/api/docs', openapi_url='/api/openapi.json', redoc_url=None)
     app.state.collector = collector
     app.state.watch = watch
-    app.include_router(watch_router(watch))
+    app.state.monitor = monitor
+    app.include_router(watch_router(watch, monitor))
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=['localhost', '127.0.0.1', 'api', 'testserver', urlsplit(settings.app_origin).hostname])
 
     @app.exception_handler(SQLAlchemyError)

@@ -119,3 +119,45 @@ class WatchSample(Base):
     run_id: Mapped[int | None] = mapped_column(ForeignKey('watch_runs.id'))
     stars: Mapped[int] = mapped_column(BigInteger)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+
+class MonitorState(Base):
+    __tablename__ = 'monitor_states'
+    project_id: Mapped[int] = mapped_column(ForeignKey('watch_projects.id'), primary_key=True)
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    releases_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    issue_since: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    scan_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    issue_page: Mapped[int] = mapped_column(Integer, default=1)
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+
+class MonitorEvent(Base):
+    __tablename__ = 'monitor_events'
+    __table_args__ = (UniqueConstraint('project_id', 'kind', 'source_id', name='uq_monitor_source'),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey('watch_projects.id'), index=True)
+    kind: Mapped[str] = mapped_column(String(16))
+    source_id: Mapped[int] = mapped_column(BigInteger)
+    title: Mapped[str] = mapped_column(Text)
+    body: Mapped[str] = mapped_column(Text)
+    url: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(24))
+    labels: Mapped[list] = mapped_column(JSONB, default=list)
+    source_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    unread: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    history: Mapped[list] = mapped_column(JSONB, default=list)
+
+
+class MonitorRun(Base):
+    __tablename__ = 'monitor_runs'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(24), default='running')
+    success_count: Mapped[int] = mapped_column(Integer, default=0)
+    failure_count: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text)
+    retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

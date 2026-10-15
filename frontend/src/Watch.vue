@@ -133,6 +133,7 @@ onUnmounted(() => { disposed = true; ++listRequest; ++detailRequest; clearTimeou
     <form class="watch-add" @submit.prevent="add"><label for="repository">手动添加公开仓库</label><div><input id="repository" v-model="repository" placeholder="owner/repo 或 https://github.com/owner/repo" required :disabled="adding"><button class="primary" :disabled="adding || !repository.trim()">{{ adding ? '正在添加…' : '添加项目' }}</button></div><small>活动监测 {{ activeCount }} / {{ limit }} · 隐藏无关项目可释放名额</small></form>
     <p v-if="notice" class="watch-notice" role="status">{{ notice }}</p>
     <p v-if="refreshError" class="watch-notice" role="status">{{ refreshError }}</p>
+    <p class="watch-notice"><a href="/crawler-watch/updates">查看版本与问题动态 ↗</a> · 关注项目后，每 6 小时检查 Release 和 Issue；首次记录为历史基线，后续变化标为未读。</p>
     <div class="section-heading"><div><p class="eyebrow">YOUR RESEARCH RADAR</p><h2>采集项目观察 <span>{{ items.length }} 个项目</span></h2></div><div class="toggle watch-views" aria-label="项目视图"><button v-for="[key, label] in [['all','全部项目'],['following','我的关注'],['pending','待测评'],['hidden','已隐藏']]" :key="key" :aria-pressed="view === key" @click="view = key">{{ label }}</button></div></div>
     <div v-if="loading" class="empty" role="status"><span class="loader"></span><h3>正在加载观察项目</h3></div>
     <div v-else-if="error" class="empty error" role="alert"><h3>暂时无法加载</h3><p>{{ error }}</p><button @click="loadItems">重新加载</button></div>

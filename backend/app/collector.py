@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import httpx
 from sqlalchemy import select, text, update
 
-from .models import CollectionRun, SNAPSHOT_MODELS, Repository, WatchRun, utcnow
+from .models import CollectionRun, SNAPSHOT_MODELS, Repository, WatchRun, MonitorRun, utcnow
 from .sources import GitHubSource, RateLimited, SourceError
 from .translation import Translator
 from .history import save_trending_repository, translation_complete
@@ -96,7 +96,7 @@ class Collector:
     def cooldown(self):
         with self.sessions() as session:
             values = [session.scalar(select(model.retry_at).where(model.retry_at > utcnow()).order_by(model.retry_at.desc()).limit(1))
-                      for model in (CollectionRun, WatchRun)]
+                      for model in (CollectionRun, WatchRun, MonitorRun)]
             return max((value for value in values if value is not None), default=None)
 
     def start(self, kind='search'):
