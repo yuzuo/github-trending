@@ -75,7 +75,7 @@ onUnmounted(() => { disposed = true; ++requestId; clearInterval(timer); controll
 
 <template>
   <header class="masthead">
-    <div class="topbar shell"><a class="brand" href="/"><span class="brand-icon">⌘</span> 开源观察</a><nav class="source-nav" aria-label="观察导航"><a href="/trending">每日 Trending</a><a href="/stars">Star 总榜</a><a href="/crawler-watch">采集项目观察</a><a href="/crawler-watch/updates" aria-current="page">项目动态</a></nav></div>
+    <div class="topbar shell"><a class="brand" href="/"><span class="brand-icon">⌘</span> 开源观察</a><nav class="source-nav" aria-label="观察导航"><a href="/trending">每日 Trending</a><a href="/stars">Star 总榜</a><a href="/crawler-watch">采集项目观察</a><a href="/crawler-watch/updates" aria-current="page">项目动态</a><a href="/crawler-watch/attention">需要关注</a></nav></div>
     <div class="hero shell"><div><p class="eyebrow">PROJECT UPDATES · 功能与问题</p><h1>了解新能力，<span>跟进新问题。</span></h1><p class="hero-copy">关注项目的版本发布和 Issue 变化，以原文证据为依据，持续保存状态。</p></div></div>
   </header>
   <main class="shell monitor-main">

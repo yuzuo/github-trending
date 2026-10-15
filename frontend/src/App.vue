@@ -85,7 +85,7 @@ onUnmounted(() => { clearTimeout(searchTimer); clearInterval(pollTimer); ++listR
 
 <template>
   <header class="masthead">
-    <div class="topbar shell"><a class="brand" href="/" aria-label="开源观察首页"><span class="brand-icon">⌘</span> 开源观察</a><nav class="source-nav" aria-label="榜单来源"><a href="/trending" :aria-current="isTrending ? 'page' : undefined">每日 Trending</a><a href="/stars" :aria-current="!isTrending ? 'page' : undefined">Star 总榜</a><a href="/crawler-watch">采集项目观察</a><a href="/crawler-watch/updates">项目动态</a></nav><span class="local"><i></i> 本地知识库</span></div>
+    <div class="topbar shell"><a class="brand" href="/" aria-label="开源观察首页"><span class="brand-icon">⌘</span> 开源观察</a><nav class="source-nav" aria-label="榜单来源"><a href="/trending" :aria-current="isTrending ? 'page' : undefined">每日 Trending</a><a href="/stars" :aria-current="!isTrending ? 'page' : undefined">Star 总榜</a><a href="/crawler-watch">采集项目观察</a><a href="/crawler-watch/updates">项目动态</a><a href="/crawler-watch/attention">需要关注</a></nav><span class="local"><i></i> 本地知识库</span></div>
     <div class="hero shell"><div><p class="eyebrow">{{ isTrending ? 'GITHUB TRENDING · 每日开源趋势' : 'GITHUB SEARCH · 公开仓库 STAR 总榜' }}</p><h1>{{ isTrending ? '捕捉今天的' : '发现下一份' }}<span>开源灵感。</span></h1><p class="hero-copy">{{ isTrending ? '追踪每日 Trending 榜单，发现正在升温的项目，留存趋势快照。' : '按累计 Stars 发现公开仓库，阅读项目原文，留存每日榜单快照。' }}</p></div><div class="hero-note"><span>保持好奇，持续构建。</span><strong>Explore. Learn. Build.</strong></div></div>
   </header>
   <main class="shell">

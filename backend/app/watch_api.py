@@ -58,7 +58,7 @@ def project_items(session, projects):
     return items
 
 
-def watch_router(service, monitor):
+def watch_router(service, monitor, attention):
     router = APIRouter(prefix='/api/watch', tags=['采集项目观察'])
 
     def protect_write(request: Request):
@@ -193,4 +193,6 @@ def watch_router(service, monitor):
             event.unread = False
         return {'status': 'read'}
 
+    from .attention_api import register_attention
+    register_attention(router, attention, protect_write, EmptyBody)
     return router

@@ -213,11 +213,11 @@ class MonitorStorageTests(unittest.TestCase):
             self.assertEqual(len(event.history), 1)
 
     def test_existing_schema_upgrade_preserves_project_and_notes(self):
-        from app.models import MonitorState, MonitorRun, MonitorEvent, WatchProject
+        from app.models import MonitorState, MonitorRun, MonitorEvent, WatchProject, EventAnalysis
         from app.database import initialize_database
         self.service()
         with self.engine.begin() as connection:
-            for table in (MonitorEvent.__table__, MonitorState.__table__, MonitorRun.__table__):
+            for table in (EventAnalysis.__table__, MonitorEvent.__table__, MonitorState.__table__, MonitorRun.__table__):
                 table.drop(connection)
         initialize_database(self.engine)
         initialize_database(self.engine)

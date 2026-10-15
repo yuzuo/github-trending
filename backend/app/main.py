@@ -19,18 +19,21 @@ from .models import CollectionRun, SNAPSHOT_MODELS, Repository
 from .watch import WatchService
 from .watch_api import watch_router
 from .monitor import MonitorService
+from .attention import AttentionService
 
 
 def serialize(model):
     return {column.name: getattr(model, column.name) for column in model.__table__.columns}
 
 
-async def schedule(collector, watch=None, monitor=None):
+async def schedule(collector, watch=None, monitor=None, attention=None):
     startup = {'trending', 'search'}
     while True:
         try:
             if monitor and await asyncio.to_thread(monitor.due):
                 await asyncio.to_thread(monitor.start)
+            if attention and await asyncio.to_thread(attention.due):
+                await asyncio.to_thread(attention.start)
             for kind in ('trending', 'search'):
                 if await asyncio.to_thread(collector.due, startup=kind in startup, kind=kind):
                     if await asyncio.to_thread(collector.start, kind=kind):
@@ -53,6 +56,7 @@ def create_app(settings=None, engine=None):
     collector = Collector(engine, sessions, settings)
     watch = WatchService(collector)
     monitor = MonitorService(collector)
+    attention = AttentionService(collector)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -60,7 +64,8 @@ def create_app(settings=None, engine=None):
         await asyncio.to_thread(collector.recover)
         await asyncio.to_thread(watch.recover)
         await asyncio.to_thread(monitor.recover)
-        task = asyncio.create_task(schedule(collector, watch, monitor)) if settings.schedule_enabled else None
+        await asyncio.to_thread(attention.recover)
+        task = asyncio.create_task(schedule(collector, watch, monitor, attention)) if settings.schedule_enabled else None
         yield
         if task:
             task.cancel()
@@ -73,7 +78,8 @@ def create_app(settings=None, engine=None):
     app.state.collector = collector
     app.state.watch = watch
     app.state.monitor = monitor
-    app.include_router(watch_router(watch, monitor))
+    app.state.attention = attention
+    app.include_router(watch_router(watch, monitor, attention))
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=['localhost', '127.0.0.1', 'api', 'testserver', urlsplit(settings.app_origin).hostname])
 
     @app.exception_handler(SQLAlchemyError)

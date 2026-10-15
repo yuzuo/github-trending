@@ -161,3 +161,50 @@ class MonitorRun(Base):
     failure_count: Mapped[int] = mapped_column(Integer, default=0)
     error: Mapped[str | None] = mapped_column(Text)
     retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ProjectProfile(Base):
+    __tablename__ = 'project_profiles'
+    project_id: Mapped[int] = mapped_column(ForeignKey('watch_projects.id'), primary_key=True)
+    usage_status: Mapped[str] = mapped_column(String(16), default='evaluating')
+    version: Mapped[str] = mapped_column(String(100), default='')
+    scenario: Mapped[str] = mapped_column(Text, default='')
+    capabilities: Mapped[list] = mapped_column(JSONB, default=list)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class EventAnalysis(Base):
+    __tablename__ = 'event_analyses'
+    event_id: Mapped[int] = mapped_column(ForeignKey('monitor_events.id'), primary_key=True)
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(24), default='pending')
+    result: Mapped[dict] = mapped_column(JSONB, default=dict)
+    evidence: Mapped[list] = mapped_column(JSONB, default=list)
+    warnings: Mapped[list] = mapped_column(JSONB, default=list)
+    model: Mapped[str] = mapped_column(String(200), default='')
+    analyzed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    error: Mapped[str | None] = mapped_column(Text)
+
+
+class AnalysisRun(Base):
+    __tablename__ = 'analysis_runs'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(24), default='running')
+    success_count: Mapped[int] = mapped_column(Integer, default=0)
+    failure_count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class ValidationResult(Base):
+    __tablename__ = 'validation_results'
+    __table_args__ = (UniqueConstraint('project_id', 'digest', name='uq_validation_digest'),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey('watch_projects.id'), index=True)
+    version: Mapped[str] = mapped_column(String(100))
+    suite: Mapped[str] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(24))
+    metrics: Mapped[dict] = mapped_column(JSONB)
+    evidence: Mapped[dict] = mapped_column(JSONB)
+    digest: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
