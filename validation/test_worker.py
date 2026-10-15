@@ -21,7 +21,6 @@ class WorkerTests(unittest.TestCase):
         for changes in ({'full_name': '../repo'}, {'version': 'a\nb'}, {'version': 'x' * 101},
                         {'source_url': 'https://evil.test/archive'}, {'source_url': 'https://codeload.github.com.evil.test/a'},
                         {'id': '../bad'}, {'suite': 'shell'}, {'suite': 'scrapy-pagination-v1'},
-                        {'full_name': 'owner/' + 'r' * 100},
                         {'source_url': 'https://github.com/other/repo/releases/tag/v1.2.3'},
                         {'source_url': 'https://github.com/owner/repo/releases/tag/v9.9.9'}):
             with self.subTest(changes=changes), self.assertRaises(ValueError):
@@ -31,6 +30,8 @@ class WorkerTests(unittest.TestCase):
         worker.validate_job(job())
         worker.validate_job(job(full_name='scrapy/scrapy', suite='scrapy-pagination-v1',
                                 source_url='https://github.com/scrapy/scrapy/releases/tag/v1.2.3'))
+        name='owner/'+'r'*100
+        worker.validate_job(job(full_name=name,source_url=f'https://github.com/{name}/releases/tag/v1.2.3'))
 
     def test_container_has_security_limits_and_one_readonly_input(self):
         with tempfile.TemporaryDirectory() as directory:

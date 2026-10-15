@@ -37,6 +37,12 @@ class SourceSuiteTests(unittest.TestCase):
         self.assertEqual(result['metrics']['failed_files'], 40)
         self.assertEqual(len(result['evidence']['errors']), 30)
 
+    def test_non_json_numeric_constants_are_rejected(self):
+        for constant in ('NaN','Infinity','-Infinity'):
+            with self.subTest(constant=constant):
+                result=self.run_archive({'repo/package.json': ('{"number":'+constant+'}').encode()})
+                self.assertEqual(result['status'],'failed')
+
     def test_unsupported_and_skipped_fixtures(self):
         result = self.run_archive({'repo/readme.md': b'hello', 'repo/tests/bad.py': b'(', 'repo/node_modules/package.json': b'{'})
         self.assertEqual(result['status'], 'unsupported')

@@ -34,7 +34,7 @@ def validate_job(job):
     if not isinstance(job.get('lease_token'), str) or not 1 <= len(job['lease_token']) <= 200:
         raise ValueError('InvalidLease')
     name, version = job.get('full_name'), job.get('version')
-    if not isinstance(name, str) or len(name) > 100 or not REPO.fullmatch(name) or name.split('/')[1] in ('.', '..'):
+    if not isinstance(name, str) or not REPO.fullmatch(name) or name.split('/')[1] in ('.', '..'):
         raise ValueError('InvalidRepository')
     if not isinstance(version, str) or not 1 <= len(version) <= 100 or any(ord(c) < 32 or ord(c) == 127 for c in version):
         raise ValueError('InvalidVersion')

@@ -24,6 +24,10 @@ def safe_path(name):
     return path
 
 
+def reject_constant(value):
+    raise ValueError('NonJSONConstant')
+
+
 def inspect_archive(path):
     checked, failed, errors = [], 0, []
     evidence = dict(fixture_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
@@ -81,7 +85,7 @@ def inspect_archive(path):
                         if name.suffix == '.py':
                             ast.parse(content, filename=str(name))
                         else:
-                            json.loads(content)
+                            json.loads(content,parse_constant=reject_constant)
                     except (SyntaxError, ValueError, UnicodeError, RecursionError) as error:
                         failed += 1
                         if len(errors) < 30:
