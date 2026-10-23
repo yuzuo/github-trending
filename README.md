@@ -177,7 +177,9 @@ docker compose ps
 
 仓库附带 [23 服务器初始化项目数据](data/README.md)：200 个观察项目及 13 个关注状态，可在全新部署中导入。它不是完整数据库备份，不包含历史动态、模型分析、笔记或密钥；导入命令与重复导入规则见该说明。
 
-Git 保存代码和随附初始化清单，不保存完整 PostgreSQL 运行数据。升级或迁移前先生成备份，以下方法避免 PowerShell 二进制重定向损坏：
+仓库还提供 [完整数据库公开脱敏快照](data/backups/README.md)，包含 2026-10-23 的全部 17 张业务表与历史数据，附校验值和空库恢复步骤。初始化清单与完整快照按需选择一种；公开快照遮盖疑似凭据并清空项目笔记，原始私有备份不公开。
+
+Git 中的静态快照不替代持续运行数据库的备份。升级或迁移前先生成最新私有备份，以下方法避免 PowerShell 二进制重定向损坏：
 
 ```sh
 docker compose exec -T db pg_dump -U trending -Fc -f /tmp/trending.dump trending
