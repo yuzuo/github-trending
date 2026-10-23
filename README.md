@@ -30,11 +30,11 @@
 克隆仓库并进入项目根目录：
 
 ```sh
-git clone https://github.com/yuzuo/github-tredding.git
-cd github-tredding
+git clone https://github.com/yuzuo/github-trending.git
+cd github-trending
 ```
 
-已有代码目录可直接使用，不要覆盖现有 `.env` 或数据库卷。仓库名为 `github-tredding`，Compose 项目名固定为 `github-trending`，目录名不会改变数据库卷名称。
+已有代码目录可直接使用，不要覆盖现有 `.env` 或数据库卷。Compose 项目名固定为 `github-trending`，目录名不会改变数据库卷名称。
 
 首次部署，在项目根目录复制 `.env.example` 为 `.env`。**已有 `.env` 时跳过复制，直接编辑。**
 
